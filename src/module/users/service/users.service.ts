@@ -11,7 +11,7 @@ export class UsersService {
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
-  async addUser(body: AddUserDto): Promise<UserEntity> {
+  async addUser(body: AddUserDto): Promise<UserEntity | Error> {
     const existingUser = await this.userRepository.findOne({ 
         where: {
             name : body.name

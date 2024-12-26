@@ -10,7 +10,7 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   async addUser(
     @Body() body: AddUserDto
-    ): Promise<UserEntity> {
+    ): Promise<UserEntity | Error> {
       try{
     return this.usersService.addUser(body);
       }
