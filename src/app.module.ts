@@ -27,7 +27,7 @@ import { ConfigKeyModule } from './config/config.module';
           username: dbConfig.username,
           password: dbConfig.password,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
-          synchronize: true,
+          synchronize: false,
           logging: nodeEnv !== 'production',
         };
       },

@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { RoomUser } from './room-user.entity';
+import { RoomUserEntity } from './room-user.entity';
 
 
 export enum GameStatus {
@@ -8,8 +8,8 @@ export enum GameStatus {
   FINISHED = 'FINISHED',
 }
 
-@Entity()
-export class Room {
+@Entity('ROOM')
+export class RoomEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -23,6 +23,6 @@ export class Room {
   })
   game_status: GameStatus;
 
-  @OneToMany(() => RoomUser, roomUser => roomUser.room)
-  roomUsers: RoomUser[];
+  @OneToMany(() => RoomUserEntity, roomUser => roomUser.room)
+  roomUsers: RoomUserEntity[];
 }

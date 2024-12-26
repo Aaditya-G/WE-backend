@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { RoomUser } from '../../rooms/entities/room-user.entity';
+import { RoomUserEntity } from '../../rooms/entities/room-user.entity';
 
-@Entity()
+@Entity('USER')
 export class UserEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -9,6 +9,6 @@ export class UserEntity {
   @Column({ unique: true })
   name: string;
 
-  @OneToMany(() => RoomUser, roomUser => roomUser.user)
-  roomUsers: RoomUser[];
+  @OneToMany(() => RoomUserEntity, roomUser => roomUser.user)
+  roomUsers: RoomUserEntity[];
 }

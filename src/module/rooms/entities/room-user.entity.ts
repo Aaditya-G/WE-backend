@@ -1,22 +1,22 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
-import { Room } from './room.entity';
+import { RoomEntity } from './room.entity';
 
 export enum UserStatus {
   CONNECTED = 'CONNECTED',
   DISCONNECTED = 'DISCONNECTED',
 }
 
-@Entity()
-export class RoomUser {
+@Entity('ROOM_USER')
+export class RoomUserEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @ManyToOne(() => UserEntity, user => user.roomUsers)
   user: UserEntity;
 
-  @ManyToOne(() => Room, room => room.roomUsers)
-  room: Room;
+  @ManyToOne(() => RoomEntity, room => room.roomUsers)
+  room: RoomEntity;
 
   @Column({
     type: 'enum',
