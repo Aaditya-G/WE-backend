@@ -1,12 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { RoomUserEntity } from './room-user.entity';
+import { GameStatus } from '../enums';
 
 
-export enum GameStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  ONGOING = 'ONGOING',
-  FINISHED = 'FINISHED',
-}
 
 @Entity('ROOM')
 export class RoomEntity {

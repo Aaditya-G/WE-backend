@@ -2,9 +2,10 @@ import { Injectable, NotFoundException, ConflictException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
-import { GameStatus, RoomEntity } from '../entities/room.entity';
+import { RoomEntity } from '../entities/room.entity';
 import { UserEntity } from 'src/module/users/entities/user.entity';
-import { RoomUserEntity, UserStatus } from '../entities/room-user.entity';
+import { RoomUserEntity} from '../entities/room-user.entity';
+import { GameStatus, UserStatus } from '../enums';
 
 @Injectable()
 export class RoomsService {

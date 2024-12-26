@@ -1,11 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { RoomEntity } from './room.entity';
+import { UserStatus } from '../enums';
 
-export enum UserStatus {
-  CONNECTED = 'CONNECTED',
-  DISCONNECTED = 'DISCONNECTED',
-}
 
 @Entity('ROOM_USER')
 export class RoomUserEntity {
