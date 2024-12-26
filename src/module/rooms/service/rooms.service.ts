@@ -18,27 +18,31 @@ export class RoomsService {
     private usersRepository: Repository<UserEntity>,
   ) {}
 
-  async createRoom(userId: number): Promise<{ room: RoomEntity; code: string }> {
-    const code = this.generateRoomCode();
-    const room = this.roomsRepository.create({ code, game_status: GameStatus.NOT_STARTED });
-    await this.roomsRepository.save(room);
+async createRoom(userId: number): Promise<{ room: RoomEntity; code: string }> {
+  const code = this.generateRoomCode();
 
-    const user = await this.usersRepository.findOne({
-        where :{
-            id: userId
-        }
-    });
-    if (!user) throw new NotFoundException('User not found');
+  const user = await this.usersRepository.findOne({
+    where: { id: userId },
+  });
+  if (!user) throw new NotFoundException('User not found');
 
-    const roomUser = this.roomUsersRepository.create({
-      user,
-      room,
-      user_status: UserStatus.CONNECTED,
-    });
-    await this.roomUsersRepository.save(roomUser);
+  const room = this.roomsRepository.create({
+    code,
+    game_status: GameStatus.NOT_STARTED,
+    owner: user, 
+  });
+  await this.roomsRepository.save(room);
 
-    return { room, code };
-  }
+  const roomUser = this.roomUsersRepository.create({
+    user,
+    room,
+    user_status: UserStatus.CONNECTED,
+  });
+  await this.roomUsersRepository.save(roomUser);
+
+  return { room, code };
+}
+
 
   async joinRoom(userId: number, code: string): Promise<RoomEntity> {
     const room = await this.roomsRepository.findOne({ where: { code }, relations: ['roomUsers'] });
@@ -72,5 +76,16 @@ export class RoomsService {
     return uuidv4().split('-')[0]; // Simple code generation; consider more robust methods
   }
 
-  // Additional room-related methods
+  // rooms.service.ts
+
+async getRoomInfo(code: string): Promise<RoomEntity> {
+  const room = await this.roomsRepository.findOne({
+    where: { code },
+    relations: ['owner', 'roomUsers', 'roomUsers.user'],
+  });
+  if (!room) {
+    throw new NotFoundException('Room not found');
+  }
+  return room;
+}
 }

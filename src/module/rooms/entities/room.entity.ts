@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from 'typeorm';
 import { RoomUserEntity } from './room-user.entity';
 import { GameStatus } from '../enums';
+import { UserEntity } from 'src/module/users/entities/user.entity';
 
 
 
@@ -18,6 +19,11 @@ export class RoomEntity {
     default: GameStatus.NOT_STARTED,
   })
   game_status: GameStatus;
+
+  @ManyToOne(() => UserEntity, (user) => user.createdRooms, {
+    onDelete: 'CASCADE',
+  })
+  owner: UserEntity;
 
   @OneToMany(() => RoomUserEntity, roomUser => roomUser.room)
   roomUsers: RoomUserEntity[];
