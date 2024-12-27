@@ -198,8 +198,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const gameState = await this.gameService.getGameState(roomCode);
-      console.log(gameState)
-      client.emit('gameStateUpdate', { success: true, gameState });
+      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('gameStateUpdate', {
         success: false,
@@ -256,7 +255,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.checkIn(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
-      this.server.to(roomCode).emit('gameStateUpdate', gameState);
+      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
       client.emit('checkInResponse', { success: true });
     } catch (error) {
       client.emit('checkInResponse', {
@@ -285,8 +284,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.startChecking(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
-      this.server.to(roomCode).emit('gameStateUpdate', gameState);
-      this.server.to(roomCode).emit('startCheckingResponse', { success: true });
+      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('startCheckingResponse', {
         success: false,

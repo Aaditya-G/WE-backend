@@ -142,7 +142,7 @@ export class GameService {
     }
 
     room.game_status = GameStatus.CHECKIN;
-    console.log(room.game_status)
     await this.roomRepository.save(room);
+    await this.checkIn(userId, roomCode);
   }
 }
