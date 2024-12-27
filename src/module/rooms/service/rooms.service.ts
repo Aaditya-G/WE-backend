@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { RoomEntity } from '../entities/room.entity';
 import { UserEntity } from 'src/module/users/entities/user.entity';
@@ -76,7 +76,61 @@ async createRoom(userId: number): Promise<{ room: RoomEntity; code: string }> {
     return uuidv4().split('-')[0]; // Simple code generation; consider more robust methods
   }
 
-  // rooms.service.ts
+  async leaveRoom(userId: number, code: string): Promise<void> {
+    const room = await this.roomsRepository.findOne({ 
+      where: { code },
+      relations: ['roomUsers', 'owner'] 
+    });
+    
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+  
+    const user = await this.usersRepository.findOne({
+      where: { id: userId }
+    });
+  
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+  
+    const roomUser = await this.roomUsersRepository.findOne({
+      where: { 
+        user: { id: userId },
+        room: { id: room.id }
+      }
+    });
+  
+    if (!roomUser) {
+      throw new NotFoundException('User is not in this room');
+    }
+  
+    // If the leaving user is the owner and there are other users
+    if (room.owner.id === userId) {
+      const otherRoomUsers = await this.roomUsersRepository.find({
+        where: { 
+          room: { id: room.id },
+          user: { id: Not(userId) },
+          user_status: UserStatus.CONNECTED
+        },
+        relations: ['user']
+      });
+  
+      if (otherRoomUsers.length > 0) {
+        // Transfer ownership to the next connected user
+        room.owner = otherRoomUsers[0].user;
+        await this.roomsRepository.save(room);
+      } else {
+        room.game_status = GameStatus.FINISHED;
+        // // If no other users, delete the room
+        await this.roomsRepository.save(room);
+        return;
+      }
+    }
+  
+    roomUser.user_status = UserStatus.DISCONNECTED;
+    await this.roomUsersRepository.save(roomUser);
+  }
 
 async getRoomInfo(code: string): Promise<RoomEntity> {
   const room = await this.roomsRepository.findOne({
