@@ -22,4 +22,8 @@ export interface GameStateUser {
     users: GameStateUser[];
     gifts: GameStateGift[];
     currentTurn: number | null;
+    totalStealsSoFar: number;
+    maxStealPerUser: number;
+    maxStealPerGame: number;
+    turnOrder: number[];
   }

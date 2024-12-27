@@ -34,4 +34,19 @@ export class RoomEntity {
 
   @OneToMany(() => RoomUserEntity, roomUser => roomUser.room)
   participants: RoomUserEntity[];
+
+  @Column('simple-array', { nullable: true })
+  turnOrder: number[] | null;
+
+  @Column({ type: 'int', nullable: true })
+  currentTurn: number | null;
+
+  @Column({ type: 'int', default: 0 })
+  totalStealsSoFar: number;
+
+  @Column({ type: 'int', default: 1 })
+  maxStealPerUser: number; // e.g. 1
+
+  @Column({ type: 'int', default: 3 })
+  maxStealPerGame: number; // e.g. 3
 }

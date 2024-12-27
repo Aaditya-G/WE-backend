@@ -29,4 +29,7 @@ export class RoomUserEntity {
   @OneToOne(() => GiftEntity, { nullable: true })
   @JoinColumn()
   addedGift: GiftEntity | null;
+
+  @Column({ type: 'int', default: 0 })
+  stealsSoFar: number;
 }

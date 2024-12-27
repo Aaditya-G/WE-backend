@@ -162,13 +162,14 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(`User ${userId} joined room ${code}`);
 
       this.server.to(code).emit('userJoined', { userId });
-      this.server.to(code).emit('gameStateUpdate', { success: true, gameState });
+      this.server
+        .to(code)
+        .emit('gameStateUpdate', { success: true, gameState });
       const count = this.getParticipantCount(code);
       this.server.to(code).emit('participantCount', { count });
 
       client.emit('joinRoomResponse', { success: true });
     } catch (error) {
-      console.log(error.stack)
       console.error(`Error joining room: ${error.message}`);
       client.emit('joinRoomResponse', {
         success: false,
@@ -197,7 +198,9 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const gameState = await this.gameService.getGameState(roomCode);
-      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('gameStateUpdate', {
         success: false,
@@ -225,7 +228,9 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.addGift(userId, roomCode, giftName);
       const gameState = await this.gameService.getGameState(roomCode);
-      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
       client.emit('addGiftResponse', { success: true });
     } catch (error) {
       client.emit('addGiftResponse', {
@@ -254,7 +259,9 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.checkIn(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
-      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
       client.emit('checkInResponse', { success: true });
     } catch (error) {
       client.emit('checkInResponse', {
@@ -272,7 +279,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { userId } = data;
     const roomCode = this.userRoomMap.get(userId);
 
-
     if (!roomCode) {
       client.emit('startCheckingResponse', {
         success: false,
@@ -284,8 +290,10 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.startChecking(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
-      console.log("gameState after checkin", gameState)
-      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
+      console.log('gameState after checkin', gameState);
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('startCheckingResponse', {
         success: false,
@@ -296,10 +304,11 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('startGame')
   async handleStartGame(
-    @MessageBody() data: { userId: number },
+    @MessageBody()
+    data: { userId: number; maxStealPerUser: number; maxStealPerGame: number },
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId } = data;
+    const { userId, maxStealPerGame, maxStealPerUser } = data;
     const roomCode = this.userRoomMap.get(userId);
 
     if (!roomCode) {
@@ -310,13 +319,17 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    console.log("game is started lets go")
-    return
-
     try {
-      // await this.gameService.startGame(userId, roomCode);
+      await this.gameService.startGame(
+        userId,
+        roomCode,
+        maxStealPerUser,
+        maxStealPerGame,
+      );
       const gameState = await this.gameService.getGameState(roomCode);
-      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('startGameResponse', {
         success: false,
@@ -328,5 +341,63 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private getParticipantCount(code: string): number {
     const room = this.server.sockets.adapter.rooms.get(code);
     return room ? room.size : 0;
+  }
+
+  @SubscribeMessage('pickGift')
+  async handlePickGift(
+    @MessageBody() data: { userId: number; giftId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { userId, giftId } = data;
+    const roomCode = this.userRoomMap.get(userId);
+    if (!roomCode) {
+      client.emit('pickGiftResponse', {
+        success: false,
+        message: 'User not in room',
+      });
+      return;
+    }
+    try {
+      await this.gameService.pickGift(userId, roomCode, giftId);
+      const gameState = await this.gameService.getGameState(roomCode);
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
+      client.emit('pickGiftResponse', { success: true });
+    } catch (error) {
+      client.emit('pickGiftResponse', {
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  @SubscribeMessage('stealGift')
+  async handleStealGift(
+    @MessageBody() data: { userId: number; targetUserId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { userId, targetUserId } = data;
+    const roomCode = this.userRoomMap.get(userId);
+    if (!roomCode) {
+      client.emit('stealGiftResponse', {
+        success: false,
+        message: 'User not in room',
+      });
+      return;
+    }
+    try {
+      await this.gameService.stealGift(userId, roomCode, targetUserId);
+      const gameState = await this.gameService.getGameState(roomCode);
+      this.server
+        .to(roomCode)
+        .emit('gameStateUpdate', { success: true, gameState });
+      client.emit('stealGiftResponse', { success: true });
+    } catch (error) {
+      client.emit('stealGiftResponse', {
+        success: false,
+        message: error.message,
+      });
+    }
   }
 }

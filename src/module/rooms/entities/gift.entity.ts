@@ -18,4 +18,10 @@ export class GiftEntity  {
 
   @ManyToOne(() => UserEntity , { nullable: true })
   receivedBy: UserEntity | null;
+
+  @Column({ default: 0 })
+  stolenCount: number;
+
+  @Column({ default: false })
+  isLocked: boolean
 }

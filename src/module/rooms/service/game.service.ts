@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RoomEntity } from '../entities/room.entity';
@@ -7,7 +11,6 @@ import { RoomUserEntity } from '../entities/room-user.entity';
 import { GameState } from '../types/game-state.types';
 import { GameStatus } from '../enums';
 import { UserEntity } from 'src/module/users/entities/user.entity';
-
 
 @Injectable()
 export class GameService {
@@ -22,63 +25,95 @@ export class GameService {
     private userRepository: Repository<UserEntity>,
   ) {}
 
-  async initializeGameState(roomCode: string, ownerId: number): Promise<GameState> {
+  async initializeGameState(
+    roomCode: string,
+    ownerId: number,
+  ): Promise<GameState> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
-      relations: ['gifts', 'gifts.addedBy' , 'participants', 'participants.user', 'participants.addedGift' , 'owner'],
+      relations: [
+        'gifts',
+        'gifts.addedBy',
+        'participants',
+        'participants.user',
+        'participants.addedGift',
+        'owner',
+      ],
     });
 
     return {
       status: room.game_status,
       owner: room.owner,
-      users: room.participants.map(participant => ({
+      users: room.participants.map((participant) => ({
         name: participant.user.name,
         id: participant.user.id,
         isCheckedIn: participant.isCheckedIn,
         giftId: participant.addedGift?.id || null,
         receivedGiftId: null,
       })),
-      gifts: room.gifts.map(gift => ({
+      gifts: room.gifts.map((gift) => ({
         id: gift.id,
         name: gift.name,
         addedById: gift.addedBy.id,
         receivedById: gift.receivedBy?.id || null,
       })),
       currentTurn: null,
+      totalStealsSoFar: 0,
+      maxStealPerUser: 1,
+      maxStealPerGame: 3,
+      turnOrder: [],
     };
   }
 
   async getGameState(roomCode: string): Promise<GameState> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
-      relations: ['gifts', 'gifts.addedBy' , 'participants', 'participants.user', 'participants.addedGift' , 'owner'],
+      relations: [
+        'owner',
+        'gifts',
+        'gifts.addedBy',
+        'gifts.receivedBy',
+        'participants',
+        'participants.user',
+        'participants.addedGift',
+      ],
     });
-
     if (!room) {
       throw new NotFoundException('Room not found');
     }
 
+    // Transform to your custom DTO (GameState)
     return {
       status: room.game_status,
       owner: room.owner,
-      users: room.participants.map(participant => ({
-        name : participant.user.name,
-        id: participant.user.id,
-        isCheckedIn: participant.isCheckedIn,
-        giftId: participant.addedGift?.id || null,
-        receivedGiftId: null,
+      users: room.participants.map((p) => ({
+        id: p.user.id,
+        name: p.user.name,
+        isCheckedIn: p.isCheckedIn,
+        giftId: p.addedGift?.id || null,
+        receivedGiftId:
+          room.gifts.find((g) => g.receivedBy?.id === p.user.id)?.id || null,
+        stealsSoFar: p.stealsSoFar, // can optionally return that too
       })),
-      gifts: room.gifts.map(gift => ({
+      gifts: room.gifts.map((gift) => ({
         id: gift.id,
         name: gift.name,
         addedById: gift.addedBy.id,
         receivedById: gift.receivedBy?.id || null,
       })),
-      currentTurn: null,
+      currentTurn: room.currentTurn,
+      totalStealsSoFar: room.totalStealsSoFar,
+      maxStealPerUser: room.maxStealPerUser,
+      maxStealPerGame: room.maxStealPerGame,
+      turnOrder: room.turnOrder,
     };
   }
 
-  async addGift(userId: number, roomCode: string, giftName: string): Promise<void> {
+  async addGift(
+    userId: number,
+    roomCode: string,
+    giftName: string,
+  ): Promise<void> {
     const roomUser = await this.roomUserRepository.findOne({
       where: { user: { id: userId }, room: { code: roomCode } },
       relations: ['room', 'addedGift'],
@@ -140,6 +175,190 @@ export class GameService {
     }
 
     room.game_status = GameStatus.CHECKIN;
+    await this.roomRepository.save(room);
+  }
+
+  async startGame(
+    userId: number,
+    roomCode: string,
+    maxStealPerUser: number,
+    maxStealPerGame: number,
+  ): Promise<void> {
+    const room = await this.roomRepository.findOne({
+      where: { code: roomCode },
+      relations: ['owner', 'participants', 'participants.user'],
+    });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    // Only the owner can start the game
+    if (room.owner.id !== userId) {
+      throw new BadRequestException('Only the owner can start the game');
+    }
+
+    // Make sure the game is in the correct state
+    if (room.game_status !== GameStatus.CHECKIN) {
+      throw new BadRequestException('Game not in a valid state to start');
+    }
+
+    // Mark the game status as ongoing
+    room.game_status = GameStatus.ONGOING;
+
+    // Build turn order from the participants
+    const participantIds = room.participants.map((p) => p.user.id);
+    // e.g. randomize or keep the same order
+    room.turnOrder = participantIds;
+
+    //randomize the turnOrder
+    room.turnOrder = room.turnOrder.sort(() => Math.random() - 0.5);
+
+    // First user in the order gets the first turn
+    room.currentTurn = participantIds[0];
+
+    // Setup steals
+    room.maxStealPerUser = maxStealPerUser;
+    room.maxStealPerGame = maxStealPerGame;
+    room.totalStealsSoFar = 0;
+
+    // Save changes
+    await this.roomRepository.save(room);
+  }
+
+  async pickGift(
+    userId: number,
+    roomCode: string,
+    giftId: number,
+  ): Promise<void> {
+    const room = await this.roomRepository.findOne({
+      where: { code: roomCode },
+      relations: [
+        'participants',
+        'participants.user',
+        'gifts',
+        'gifts.addedBy',
+      ],
+    });
+    if (!room) throw new NotFoundException('Room not found');
+
+    if (room.game_status !== GameStatus.ONGOING) {
+      throw new BadRequestException('Game is not ongoing');
+    }
+
+    if (room.currentTurn !== userId) {
+      throw new BadRequestException('It is not your turn');
+    }
+
+    // Find the gift
+    const gift = room.gifts.find((g) => g.id === giftId);
+    if (!gift) {
+      throw new NotFoundException('Gift not found');
+    }
+    if (gift.receivedBy) {
+      throw new BadRequestException('Gift has already been taken');
+    }
+
+    gift.receivedBy = { id: userId } as UserEntity;
+    
+
+    if (!room.turnOrder || room.turnOrder.length === 0) return;
+    // const currentIndex = room.turnOrder.findIndex(
+    //   (id) => id === room.currentTurn,
+    // );
+    // if (currentIndex !== -1) {
+    //   room.turnOrder.splice(currentIndex, 1);
+    // }
+    // room.currentTurn = room.turnOrder.length > 0 ? room.turnOrder[0] : null;
+
+
+    //remove the 0'th index from room.turnOrder
+    room.turnOrder.shift();
+
+    //if room.turnOrder is empty, set room.currentTurn to null and game status to finished
+    if(room.turnOrder.length == 0){
+      room.currentTurn = null;
+      room.game_status = GameStatus.FINISHED;
+    }
+    else{
+      room.currentTurn = room.turnOrder[0];
+    }
+    await this.roomRepository.save(room);
+    await this.giftRepository.save(gift);
+  }
+
+  async stealGift(
+    userId: number,
+    roomCode: string,
+    giftId: number,
+  ): Promise<void> {
+    const room = await this.roomRepository.findOne({
+      where: { code: roomCode },
+      relations: [
+        'participants',
+        'participants.user',
+        'gifts',
+        'gifts.addedBy',
+      ],
+    });
+    if (!room) throw new NotFoundException('Room not found');
+
+    if (room.game_status !== GameStatus.ONGOING) {
+      throw new BadRequestException('Game is not ongoing');
+    }
+
+    if (room.currentTurn !== userId) {
+      throw new BadRequestException('Not your turn');
+    }
+
+    if (room.totalStealsSoFar >= room.maxStealPerGame) {
+      throw new BadRequestException('Max steals reached for this game');
+    }
+
+    const gift = room.gifts.find((g) => g.id === giftId);
+    if (!gift || !gift.receivedBy) {
+      throw new BadRequestException('Gift not currently owned by any player');
+    }
+    if (gift.receivedBy.id === userId) {
+      throw new BadRequestException('Cannot steal your own gift');
+    }
+
+    const roomUser = room.participants.find((p) => p.user.id === userId);
+    if (!roomUser) {
+      throw new NotFoundException('User not found in this room');
+    }
+    if (roomUser.stealsSoFar >= room.maxStealPerUser) {
+      throw new BadRequestException('You have no steals remaining');
+    }
+
+    roomUser.stealsSoFar += 1;
+    room.totalStealsSoFar += 1;
+    await this.roomUserRepository.save(roomUser);
+
+    const stolenFromUserId = gift.receivedBy.id;
+
+    gift.receivedBy = { id: userId } as UserEntity;
+    await this.giftRepository.save(gift);
+
+    await this.setNextTurnAfterSteal(room, stolenFromUserId);
+  }
+
+  private async setNextTurnAfterSteal(
+    room: RoomEntity,
+    stolenFromUserId: number,
+  ): Promise<void> {
+    if (!room.turnOrder || room.turnOrder.length === 0) return;
+    const currentIndex = room.turnOrder.findIndex(
+      (id) => id === room.currentTurn,
+    );
+    if (currentIndex !== -1) {
+      room.turnOrder.splice(currentIndex, 1);
+    }
+    const stolenFromIndex = room.turnOrder.indexOf(stolenFromUserId);
+    if (stolenFromIndex === -1) {
+      room.turnOrder.unshift(stolenFromUserId);
+    }
+    room.currentTurn = stolenFromUserId;
+
     await this.roomRepository.save(room);
   }
 }
