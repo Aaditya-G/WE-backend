@@ -121,35 +121,46 @@ export class GameService {
     roomCode: string,
     giftName: string,
   ): Promise<void> {
-    const roomUser = await this.roomUserRepository.findOne({
-      where: { user: { id: userId }, room: { code: roomCode } },
-      relations: ['room', 'addedGift'],
-    });
+    try {
+      const roomUser = await this.roomUserRepository.findOne({
+        where: { user: { id: userId }, room: { code: roomCode } },
+        relations: ['room', 'addedGift' , 'user'],
+      });
 
-    if (!roomUser) {
-      throw new NotFoundException('User not in room');
+      console.log(roomUser)
+  
+      if (!roomUser) {
+        throw new NotFoundException('User not in room');
+      }
+  
+      if (roomUser.addedGift) {
+        throw new BadRequestException('User already added a gift');
+      }
+  
+      const gift = this.giftRepository.create({
+        name: giftName,
+        room: roomUser.room,
+        addedBy: { id: userId },
+      });
+      
+      Logger.log(roomUser.user.name + " added a gift");
+      await this.addLog(roomCode, `${roomUser.user.name} added a gift`);
+  
+      await this.giftRepository.save(gift);
+      roomUser.addedGift = gift;
+      await this.roomUserRepository.save(roomUser);
+      Logger.log(roomUser.user.name + " added a gift");
+    } catch (error) {
+      Logger.log(error);
     }
-
-    if (roomUser.addedGift) {
-      throw new BadRequestException('User already added a gift');
-    }
-
-    const gift = this.giftRepository.create({
-      name: giftName,
-      room: roomUser.room,
-      addedBy: { id: userId },
-    });
-
-    await this.giftRepository.save(gift);
-    roomUser.addedGift = gift;
-    await this.roomUserRepository.save(roomUser);
-    await this.addLog(roomCode, `${roomUser.user.name} added a gift`);
+    
+    
   }
 
   async checkIn(userId: number, roomCode: string): Promise<void> {
     const roomUser = await this.roomUserRepository.findOne({
       where: { user: { id: userId }, room: { code: roomCode } },
-      relations: ['addedGift'],
+      relations: ['addedGift' , 'user'],
     });
 
     if (!roomUser) {
@@ -168,7 +179,7 @@ export class GameService {
   async startChecking(userId: number, roomCode: string): Promise<void> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
-      relations: ['owner'],
+      relations: ['owner' , ],
     });
 
     if (!room) {
@@ -185,7 +196,7 @@ export class GameService {
 
     room.game_status = GameStatus.CHECKIN;
     await this.roomRepository.save(room);
-    await this.addLog(roomCode, 'Game started. Participants can now check in');
+    await this.addLog(roomCode, 'Check In Started!, Participants can now check in');
   }
 
   async startGame(
@@ -233,7 +244,7 @@ export class GameService {
 
     // Save changes
     await this.roomRepository.save(room);
-    await this.addLog(roomCode, 'Game started, Participants can now pick or steal gifts');
+    await this.addLog(roomCode, 'Game started!, Participants can now pick or steal gifts');
   }
 
   async pickGift(
@@ -274,7 +285,7 @@ export class GameService {
 
     if (!room.turnOrder || room.turnOrder.length === 0) return;
     room.turnOrder.shift();
-    
+
     if(room.turnOrder.length == 0){
       room.currentTurn = null;
       room.game_status = GameStatus.FINISHED;
@@ -285,7 +296,7 @@ export class GameService {
     await this.roomRepository.save(room);
     await this.giftRepository.save(gift);
 
-    await this.addLog(roomCode, `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift`);
+    await this.addLog(roomCode, `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift called`);
   }
 
   async stealGift(

@@ -149,7 +149,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       const room = await this.roomsService.joinRoom(userId, code);
-      await this.gameService.addLog(code, `User ${userId} joined the room`);
       if (!room) {
         throw new NotFoundException('Room not found');
       }
