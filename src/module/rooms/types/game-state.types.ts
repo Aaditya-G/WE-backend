@@ -1,3 +1,4 @@
+import { UserEntity } from "src/module/users/entities/user.entity";
 import { GameStatus } from "../enums";
 
 export interface GameStateUser {
@@ -16,10 +17,7 @@ export interface GameStateUser {
   
   export interface GameState {
     status: GameStatus;
-    owner: {
-      id: number;
-      name: string;
-    };
+    owner: UserEntity;
     users: GameStateUser[];
     gifts: GameStateGift[];
     currentTurn: number | null;

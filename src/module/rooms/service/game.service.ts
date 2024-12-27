@@ -25,22 +25,8 @@ export class GameService {
   async initializeGameState(roomCode: string, ownerId: number): Promise<GameState> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
-      relations: ['gifts', 'participants', 'participants.user', 'participants.addedGift'],
+      relations: ['gifts', 'gifts.addedBy' , 'participants', 'participants.user', 'participants.addedGift' , 'owner'],
     });
-
-    if (!room) {
-      throw new NotFoundException('Room not found');
-    }
-
-    // If room doesn't have status set, set it to NOT_STARTED
-    if (!room.game_status) {
-      room.game_status = GameStatus.NOT_STARTED;
-      const owner = await this.userRepository.findOne({
-        where: { id: ownerId },
-      });
-      room.owner = owner;
-      await this.roomRepository.save(room);
-    }
 
     return {
       status: room.game_status,
@@ -64,7 +50,7 @@ export class GameService {
   async getGameState(roomCode: string): Promise<GameState> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
-      relations: ['gifts', 'participants', 'participants.user', 'participants.addedGift'],
+      relations: ['gifts', 'gifts.addedBy' , 'participants', 'participants.user', 'participants.addedGift' , 'owner'],
     });
 
     if (!room) {
@@ -136,13 +122,18 @@ export class GameService {
   async startChecking(userId: number, roomCode: string): Promise<void> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
+      relations: ['owner'],
     });
+
+    console.log("room", room)
+
 
     if (!room) {
       throw new NotFoundException('Room not found');
     }
 
     if (room.owner.id !== userId) {
+      console.log(room.owner.id , userId)
       throw new BadRequestException('Only owner can start checking');
     }
 
@@ -151,6 +142,7 @@ export class GameService {
     }
 
     room.game_status = GameStatus.CHECKIN;
+    console.log(room.game_status)
     await this.roomRepository.save(room);
   }
 }

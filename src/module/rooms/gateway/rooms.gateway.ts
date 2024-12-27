@@ -1,4 +1,3 @@
-// rooms.gateway.ts
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -92,7 +91,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         code,
         userId,
       );
-
       // Update maps
       this.userSocketMap.set(userId, client.id);
       this.userRoomMap.set(userId, code);
@@ -201,8 +199,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const gameState = await this.gameService.getGameState(roomCode);
       console.log(gameState)
-      const stringGameState = gameState.toString()
-      client.emit('gameStateUpdate', { success: true, gameState : gameState });
+      client.emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('gameStateUpdate', {
         success: false,
@@ -289,7 +286,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       await this.gameService.startChecking(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
       this.server.to(roomCode).emit('gameStateUpdate', gameState);
-      client.emit('startCheckingResponse', { success: true });
+      this.server.to(roomCode).emit('startCheckingResponse', { success: true });
     } catch (error) {
       client.emit('startCheckingResponse', {
         success: false,
