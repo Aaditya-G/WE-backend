@@ -3,6 +3,7 @@ import { RoomUserEntity } from './room-user.entity';
 import { GameStatus } from '../enums';
 import { UserEntity } from 'src/module/users/entities/user.entity';
 import { GiftEntity } from './gift.entity';
+import { LogEntity } from './log.entity';
 
 
 
@@ -34,6 +35,12 @@ export class RoomEntity {
 
   @OneToMany(() => RoomUserEntity, roomUser => roomUser.room)
   participants: RoomUserEntity[];
+
+  //onetomany for logs
+  @OneToMany(() => LogEntity, log => log.room , {
+    cascade: true,
+  })
+  logs: LogEntity[];
 
   @Column('simple-array', { nullable: true })
   turnOrder: number[] | null;

@@ -2,15 +2,17 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { RoomEntity } from '../entities/room.entity';
 import { GiftEntity } from '../entities/gift.entity';
 import { RoomUserEntity } from '../entities/room-user.entity';
 import { GameState } from '../types/game-state.types';
 import { GameStatus } from '../enums';
 import { UserEntity } from 'src/module/users/entities/user.entity';
+import { LogEntity } from '../entities/log.entity';
 
 @Injectable()
 export class GameService {
@@ -23,6 +25,8 @@ export class GameService {
     private roomUserRepository: Repository<RoomUserEntity>,
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(LogEntity)
+    private logRepository: Repository<LogEntity>,
   ) {}
 
   async initializeGameState(
@@ -38,9 +42,9 @@ export class GameService {
         'participants.user',
         'participants.addedGift',
         'owner',
+        'logs'
       ],
     });
-
     return {
       status: room.game_status,
       owner: room.owner,
@@ -62,6 +66,7 @@ export class GameService {
       maxStealPerUser: 1,
       maxStealPerGame: 3,
       turnOrder: [],
+      logs: room.logs,
     };
   }
 
@@ -76,6 +81,7 @@ export class GameService {
         'participants',
         'participants.user',
         'participants.addedGift',
+        'logs'
       ],
     });
     if (!room) {
@@ -106,6 +112,7 @@ export class GameService {
       maxStealPerUser: room.maxStealPerUser,
       maxStealPerGame: room.maxStealPerGame,
       turnOrder: room.turnOrder,
+      logs: room.logs
     };
   }
 
@@ -136,6 +143,7 @@ export class GameService {
     await this.giftRepository.save(gift);
     roomUser.addedGift = gift;
     await this.roomUserRepository.save(roomUser);
+    await this.addLog(roomCode, `${roomUser.user.name} added a gift`);
   }
 
   async checkIn(userId: number, roomCode: string): Promise<void> {
@@ -154,6 +162,7 @@ export class GameService {
 
     roomUser.isCheckedIn = true;
     await this.roomUserRepository.save(roomUser);
+    await this.addLog(roomCode, `${roomUser.user.name} checked in`);
   }
 
   async startChecking(userId: number, roomCode: string): Promise<void> {
@@ -176,6 +185,7 @@ export class GameService {
 
     room.game_status = GameStatus.CHECKIN;
     await this.roomRepository.save(room);
+    await this.addLog(roomCode, 'Game started. Participants can now check in');
   }
 
   async startGame(
@@ -223,6 +233,7 @@ export class GameService {
 
     // Save changes
     await this.roomRepository.save(room);
+    await this.addLog(roomCode, 'Game started, Participants can now pick or steal gifts');
   }
 
   async pickGift(
@@ -262,19 +273,8 @@ export class GameService {
     
 
     if (!room.turnOrder || room.turnOrder.length === 0) return;
-    // const currentIndex = room.turnOrder.findIndex(
-    //   (id) => id === room.currentTurn,
-    // );
-    // if (currentIndex !== -1) {
-    //   room.turnOrder.splice(currentIndex, 1);
-    // }
-    // room.currentTurn = room.turnOrder.length > 0 ? room.turnOrder[0] : null;
-
-
-    //remove the 0'th index from room.turnOrder
     room.turnOrder.shift();
-
-    //if room.turnOrder is empty, set room.currentTurn to null and game status to finished
+    
     if(room.turnOrder.length == 0){
       room.currentTurn = null;
       room.game_status = GameStatus.FINISHED;
@@ -284,6 +284,8 @@ export class GameService {
     }
     await this.roomRepository.save(room);
     await this.giftRepository.save(gift);
+
+    await this.addLog(roomCode, `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift`);
   }
 
   async stealGift(
@@ -340,12 +342,13 @@ export class GameService {
     await this.giftRepository.save(gift);
 
     await this.setNextTurnAfterSteal(room, stolenFromUserId);
+    await this.addLog(roomCode, `${room.participants.find((p) => p.user.id === userId).user.name} stole a gift from ${room.participants.find((p) => p.user.id === stolenFromUserId).user.name}`);
   }
 
-  private async setNextTurnAfterSteal(
+  private  setNextTurnAfterSteal = async (
     room: RoomEntity,
     stolenFromUserId: number,
-  ): Promise<void> {
+  ): Promise<void> => {
     if (!room.turnOrder || room.turnOrder.length === 0) return;
     const currentIndex = room.turnOrder.findIndex(
       (id) => id === room.currentTurn,
@@ -359,6 +362,22 @@ export class GameService {
     }
     room.currentTurn = stolenFromUserId;
 
+    await this.roomRepository.save(room);
+  }
+
+  async addLog(roomCode: string, message: string): Promise<void> {
+    Logger.log("add log was called")
+    const room = await this.roomRepository.findOne({
+      where: { code: roomCode },
+      relations: ['logs'],
+    });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    const log = new LogEntity();
+    log.action = message;
+    log.index = room.logs.length;
+    room.logs.push(log);
     await this.roomRepository.save(room);
   }
 }

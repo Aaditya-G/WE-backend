@@ -1,5 +1,6 @@
 import { UserEntity } from "src/module/users/entities/user.entity";
 import { GameStatus } from "../enums";
+import { LogEntity } from "../entities/log.entity";
 
 export interface GameStateUser {
     name : string;
@@ -26,4 +27,5 @@ export interface GameStateUser {
     maxStealPerUser: number;
     maxStealPerGame: number;
     turnOrder: number[];
+    logs : LogEntity[];
   }
