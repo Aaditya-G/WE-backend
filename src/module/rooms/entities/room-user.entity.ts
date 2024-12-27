@@ -1,7 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, Column, OneToOne, JoinColumn } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { RoomEntity } from './room.entity';
 import { UserStatus } from '../enums';
+import { GiftEntity } from './gift.entity';
 
 
 @Entity('ROOM_USER')
@@ -21,4 +22,11 @@ export class RoomUserEntity {
     default: UserStatus.CONNECTED,
   })
   user_status: UserStatus;
+
+  @Column({ default: false })
+  isCheckedIn: boolean;
+
+  @OneToOne(() => GiftEntity, { nullable: true })
+  @JoinColumn()
+  addedGift: GiftEntity | null;
 }
