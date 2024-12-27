@@ -32,6 +32,7 @@ export class GameService {
       status: room.game_status,
       owner: room.owner,
       users: room.participants.map(participant => ({
+        name: participant.user.name,
         id: participant.user.id,
         isCheckedIn: participant.isCheckedIn,
         giftId: participant.addedGift?.id || null,
@@ -61,6 +62,7 @@ export class GameService {
       status: room.game_status,
       owner: room.owner,
       users: room.participants.map(participant => ({
+        name : participant.user.name,
         id: participant.user.id,
         isCheckedIn: participant.isCheckedIn,
         giftId: participant.addedGift?.id || null,
@@ -125,15 +127,11 @@ export class GameService {
       relations: ['owner'],
     });
 
-    console.log("room", room)
-
-
     if (!room) {
       throw new NotFoundException('Room not found');
     }
 
     if (room.owner.id !== userId) {
-      console.log(room.owner.id , userId)
       throw new BadRequestException('Only owner can start checking');
     }
 
@@ -143,6 +141,5 @@ export class GameService {
 
     room.game_status = GameStatus.CHECKIN;
     await this.roomRepository.save(room);
-    await this.checkIn(userId, roomCode);
   }
 }

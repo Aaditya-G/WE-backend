@@ -2,6 +2,7 @@ import { UserEntity } from "src/module/users/entities/user.entity";
 import { GameStatus } from "../enums";
 
 export interface GameStateUser {
+    name : string;
     id: number;
     isCheckedIn: boolean;
     giftId: number | null;

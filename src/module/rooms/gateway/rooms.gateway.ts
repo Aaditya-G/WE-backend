@@ -154,7 +154,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       const gameState = await this.gameService.getGameState(code);
-      console.log(gameState)
 
       this.userSocketMap.set(userId, client.id);
       this.userRoomMap.set(userId, code);
@@ -273,6 +272,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { userId } = data;
     const roomCode = this.userRoomMap.get(userId);
 
+
     if (!roomCode) {
       client.emit('startCheckingResponse', {
         success: false,
@@ -284,9 +284,41 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.startChecking(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
+      console.log("gameState after checkin", gameState)
       this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
       client.emit('startCheckingResponse', {
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  @SubscribeMessage('startGame')
+  async handleStartGame(
+    @MessageBody() data: { userId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { userId } = data;
+    const roomCode = this.userRoomMap.get(userId);
+
+    if (!roomCode) {
+      client.emit('startGameResponse', {
+        success: false,
+        message: 'User not in room',
+      });
+      return;
+    }
+
+    console.log("game is started lets go")
+    return
+
+    try {
+      // await this.gameService.startGame(userId, roomCode);
+      const gameState = await this.gameService.getGameState(roomCode);
+      this.server.to(roomCode).emit('gameStateUpdate', { success: true, gameState });
+    } catch (error) {
+      client.emit('startGameResponse', {
         success: false,
         message: error.message,
       });
