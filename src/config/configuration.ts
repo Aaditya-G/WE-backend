@@ -10,6 +10,7 @@ export default () => ({
       password: env.get('DB_PASSWORD').required().asString(),
     },
     ENVIRONMENT: env.get('ENVIRONMENT').asString(),
+    DATABASE_URL: env.get('DATABASE_URL').asString(),
   });
 
 

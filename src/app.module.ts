@@ -17,15 +17,11 @@ import { ConfigKeyModule } from './config/config.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
-        const dbConfig = configService.get<DatabaseConfig>('database');
+        const connectionString = configService.get<string>('DATABASE_URL');
         const nodeEnv = configService.get<string>('ENVIRONMENT') || 'development';
         return {
           type: 'postgres',
-          host: dbConfig.host,
-          port: dbConfig.port,
-          database: dbConfig.database,
-          username: dbConfig.username,
-          password: dbConfig.password,
+          url: connectionString,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           synchronize: false,
           logging: nodeEnv !== 'production',
@@ -37,6 +33,7 @@ import { ConfigKeyModule } from './config/config.module';
       },
       inject: [ConfigService],
     }),
+    
     UsersModule,
     RoomsModule,
     ConfigKeyModule,
