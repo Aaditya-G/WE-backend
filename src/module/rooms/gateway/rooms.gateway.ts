@@ -31,13 +31,10 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
-  }
+}
 
   async handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
-
-    // Find and cleanup user associated with this socket
+// Find and cleanup user associated with this socket
     // let userIdToRemove: number | undefined;
     // for (const [userId, socketId] of this.userSocketMap.entries()) {
     //   if (socketId === client.id) {
@@ -69,8 +66,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { userId } = data;
 
     if (this.connectionInProgress.get(userId)) {
-      console.log(`Room creation already in progress for user ${userId}`);
-      return;
+return;
     }
 
     try {
@@ -96,9 +92,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.userRoomMap.set(userId, code);
 
       await client.join(code);
-      console.log(`User ${userId} created and joined room ${code}`);
-
-      this.server.to(code).emit('userJoined', { userId });
+this.server.to(code).emit('userJoined', { userId });
       this.server.to(code).emit('gameStateUpdate', gameState);
       const count = this.getParticipantCount(code);
       this.server.to(code).emit('participantCount', { count });
@@ -124,8 +118,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { userId, code } = data;
 
     if (this.connectionInProgress.get(userId)) {
-      console.log(`Join already in progress for user ${userId}`);
-      return;
+return;
     }
 
     try {
@@ -136,8 +129,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const currentRoomCode = this.userRoomMap.get(userId);
 
       if (currentRoomCode === code && currentSocketId === client.id) {
-        console.log(`User ${userId} is already in room ${code}`);
-        return;
+return;
       }
 
       // Handle existing connection
@@ -159,9 +151,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.userRoomMap.set(userId, code);
 
       await client.join(code);
-      console.log(`User ${userId} joined room ${code}`);
-
-      this.server.to(code).emit('userJoined', { userId });
+this.server.to(code).emit('userJoined', { userId });
       this.server
         .to(code)
         .emit('gameStateUpdate', { success: true, gameState });
@@ -290,8 +280,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       await this.gameService.startChecking(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
-      console.log('gameState after checkin', gameState);
-      this.server
+this.server
         .to(roomCode)
         .emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
@@ -374,10 +363,10 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('stealGift')
   async handleStealGift(
-    @MessageBody() data: { userId: number; targetUserId: number },
+    @MessageBody() data: { userId: number; giftId: number },
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId, targetUserId } = data;
+    const { userId, giftId } = data;
     const roomCode = this.userRoomMap.get(userId);
     if (!roomCode) {
       client.emit('stealGiftResponse', {
@@ -387,13 +376,14 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
     try {
-      await this.gameService.stealGift(userId, roomCode, targetUserId);
+      await this.gameService.stealGift(userId, roomCode, giftId);
       const gameState = await this.gameService.getGameState(roomCode);
       this.server
         .to(roomCode)
         .emit('gameStateUpdate', { success: true, gameState });
       client.emit('stealGiftResponse', { success: true });
     } catch (error) {
+      console.log(error.stack)
       client.emit('stealGiftResponse', {
         success: false,
         message: error.message,

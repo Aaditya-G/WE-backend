@@ -13,6 +13,11 @@ import { GameState } from '../types/game-state.types';
 import { GameStatus } from '../enums';
 import { UserEntity } from 'src/module/users/entities/user.entity';
 import { LogEntity } from '../entities/log.entity';
+import {
+  MAX_STEAL_PER_GAME,
+  MAX_STEAL_PER_GIFT,
+  MAX_STEAL_PER_USER,
+} from 'src/common/constants';
 
 @Injectable()
 export class GameService {
@@ -42,7 +47,7 @@ export class GameService {
         'participants.user',
         'participants.addedGift',
         'owner',
-        'logs'
+        'logs',
       ],
     });
     return {
@@ -60,13 +65,15 @@ export class GameService {
         name: gift.name,
         addedById: gift.addedBy.id,
         receivedById: gift.receivedBy?.id || null,
+        stolenCount: gift.stolenCount,
       })),
       currentTurn: null,
       totalStealsSoFar: 0,
-      maxStealPerUser: 1,
-      maxStealPerGame: 3,
+      maxStealPerUser: MAX_STEAL_PER_USER,
+      maxStealPerGame: MAX_STEAL_PER_GAME,
       turnOrder: [],
       logs: room.logs,
+      maxStealPerGift: MAX_STEAL_PER_GIFT,
     };
   }
 
@@ -81,14 +88,13 @@ export class GameService {
         'participants',
         'participants.user',
         'participants.addedGift',
-        'logs'
+        'logs',
       ],
     });
     if (!room) {
       throw new NotFoundException('Room not found');
     }
 
-    // Transform to your custom DTO (GameState)
     return {
       status: room.game_status,
       owner: room.owner,
@@ -99,20 +105,23 @@ export class GameService {
         giftId: p.addedGift?.id || null,
         receivedGiftId:
           room.gifts.find((g) => g.receivedBy?.id === p.user.id)?.id || null,
-        stealsSoFar: p.stealsSoFar, // can optionally return that too
+        stealsSoFar: p.stealsSoFar,
       })),
       gifts: room.gifts.map((gift) => ({
         id: gift.id,
         name: gift.name,
         addedById: gift.addedBy.id,
         receivedById: gift.receivedBy?.id || null,
+        stolenCount: gift.stolenCount,
+        isLocked: gift.isLocked,
       })),
       currentTurn: room.currentTurn,
       totalStealsSoFar: room.totalStealsSoFar,
       maxStealPerUser: room.maxStealPerUser,
       maxStealPerGame: room.maxStealPerGame,
       turnOrder: room.turnOrder,
-      logs: room.logs
+      logs: room.logs,
+      maxStealPerGift: room.maxStealPerGift,
     };
   }
 
@@ -124,43 +133,41 @@ export class GameService {
     try {
       const roomUser = await this.roomUserRepository.findOne({
         where: { user: { id: userId }, room: { code: roomCode } },
-        relations: ['room', 'addedGift' , 'user'],
+        relations: ['room', 'addedGift', 'user'],
       });
 
-      console.log(roomUser)
-  
+      console.log(roomUser);
+
       if (!roomUser) {
         throw new NotFoundException('User not in room');
       }
-  
+
       if (roomUser.addedGift) {
         throw new BadRequestException('User already added a gift');
       }
-  
+
       const gift = this.giftRepository.create({
         name: giftName,
         room: roomUser.room,
         addedBy: { id: userId },
       });
-      
-      Logger.log(roomUser.user.name + " added a gift");
+
+      Logger.log(roomUser.user.name + ' added a gift');
       await this.addLog(roomCode, `${roomUser.user.name} added a gift`);
-  
+
       await this.giftRepository.save(gift);
       roomUser.addedGift = gift;
       await this.roomUserRepository.save(roomUser);
-      Logger.log(roomUser.user.name + " added a gift");
+      Logger.log(roomUser.user.name + ' added a gift');
     } catch (error) {
       Logger.log(error);
     }
-    
-    
   }
 
   async checkIn(userId: number, roomCode: string): Promise<void> {
     const roomUser = await this.roomUserRepository.findOne({
       where: { user: { id: userId }, room: { code: roomCode } },
-      relations: ['addedGift' , 'user'],
+      relations: ['addedGift', 'user'],
     });
 
     if (!roomUser) {
@@ -179,7 +186,7 @@ export class GameService {
   async startChecking(userId: number, roomCode: string): Promise<void> {
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
-      relations: ['owner' , ],
+      relations: ['owner'],
     });
 
     if (!room) {
@@ -196,7 +203,10 @@ export class GameService {
 
     room.game_status = GameStatus.CHECKIN;
     await this.roomRepository.save(room);
-    await this.addLog(roomCode, 'Check In Started!, Participants can now check in');
+    await this.addLog(
+      roomCode,
+      'Check In Started!, Participants can now check in',
+    );
   }
 
   async startGame(
@@ -244,7 +254,10 @@ export class GameService {
 
     // Save changes
     await this.roomRepository.save(room);
-    await this.addLog(roomCode, 'Game started!, Participants can now pick or steal gifts');
+    await this.addLog(
+      roomCode,
+      'Game started!, Participants can now pick or steal gifts',
+    );
   }
 
   async pickGift(
@@ -280,23 +293,37 @@ export class GameService {
       throw new BadRequestException('Gift has already been taken');
     }
 
+    const gifts = await this.giftRepository.find({
+      where: { room: { code: roomCode } },
+      relations: ['room'],
+    });
+
+    // Then update them
+    await Promise.all(
+      gifts.map((gift) => {
+        gift.isLocked = false;
+        return this.giftRepository.save(gift);
+      }),
+    );
+
     gift.receivedBy = { id: userId } as UserEntity;
-    
 
     if (!room.turnOrder || room.turnOrder.length === 0) return;
     room.turnOrder.shift();
 
-    if(room.turnOrder.length == 0){
+    if (room.turnOrder.length == 0) {
       room.currentTurn = null;
       room.game_status = GameStatus.FINISHED;
-    }
-    else{
+    } else {
       room.currentTurn = room.turnOrder[0];
     }
     await this.roomRepository.save(room);
     await this.giftRepository.save(gift);
 
-    await this.addLog(roomCode, `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift called`);
+    await this.addLog(
+      roomCode,
+      `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift called`,
+    );
   }
 
   async stealGift(
@@ -311,6 +338,7 @@ export class GameService {
         'participants.user',
         'gifts',
         'gifts.addedBy',
+        'gifts.receivedBy',
       ],
     });
     if (!room) throw new NotFoundException('Room not found');
@@ -318,11 +346,9 @@ export class GameService {
     if (room.game_status !== GameStatus.ONGOING) {
       throw new BadRequestException('Game is not ongoing');
     }
-
     if (room.currentTurn !== userId) {
       throw new BadRequestException('Not your turn');
     }
-
     if (room.totalStealsSoFar >= room.maxStealPerGame) {
       throw new BadRequestException('Max steals reached for this game');
     }
@@ -334,6 +360,14 @@ export class GameService {
     if (gift.receivedBy.id === userId) {
       throw new BadRequestException('Cannot steal your own gift');
     }
+    if (gift.addedBy.id === userId) {
+      throw new BadRequestException('Cannot steal a gift you added');
+    }
+    if (gift.stolenCount >= room.maxStealPerGift) {
+      throw new BadRequestException(
+        'Gift has been stolen the maximum number of times',
+      );
+    }
 
     const roomUser = room.participants.find((p) => p.user.id === userId);
     if (!roomUser) {
@@ -343,41 +377,50 @@ export class GameService {
       throw new BadRequestException('You have no steals remaining');
     }
 
+    const gifts = await this.giftRepository.find({
+      where: { room: { code: roomCode } },
+      relations: ['room'],
+    });
+
+    await Promise.all(
+      gifts.map((gift) => {
+        gift.isLocked = false;
+        return this.giftRepository.save(gift);
+      }),
+    );
+
     roomUser.stealsSoFar += 1;
     room.totalStealsSoFar += 1;
+
     await this.roomUserRepository.save(roomUser);
 
     const stolenFromUserId = gift.receivedBy.id;
 
     gift.receivedBy = { id: userId } as UserEntity;
+    gift.stolenCount += 1;
+    gift.isLocked = true;
     await this.giftRepository.save(gift);
 
     await this.setNextTurnAfterSteal(room, stolenFromUserId);
-    await this.addLog(roomCode, `${room.participants.find((p) => p.user.id === userId).user.name} stole a gift from ${room.participants.find((p) => p.user.id === stolenFromUserId).user.name}`);
+    await this.addLog(
+      roomCode,
+      `${room.participants.find((p) => p.user.id === userId).user.name} stole a gift from ${room.participants.find((p) => p.user.id === stolenFromUserId).user.name}`,
+    );
   }
 
-  private  setNextTurnAfterSteal = async (
+  private setNextTurnAfterSteal = async (
     room: RoomEntity,
     stolenFromUserId: number,
   ): Promise<void> => {
     if (!room.turnOrder || room.turnOrder.length === 0) return;
-    const currentIndex = room.turnOrder.findIndex(
-      (id) => id === room.currentTurn,
-    );
-    if (currentIndex !== -1) {
-      room.turnOrder.splice(currentIndex, 1);
-    }
-    const stolenFromIndex = room.turnOrder.indexOf(stolenFromUserId);
-    if (stolenFromIndex === -1) {
-      room.turnOrder.unshift(stolenFromUserId);
-    }
+    room.turnOrder.shift();
+    room.turnOrder.unshift(stolenFromUserId);
     room.currentTurn = stolenFromUserId;
-
     await this.roomRepository.save(room);
-  }
+  };
 
   async addLog(roomCode: string, message: string): Promise<void> {
-    Logger.log("add log was called")
+    Logger.log('add log was called');
     const room = await this.roomRepository.findOne({
       where: { code: roomCode },
       relations: ['logs'],

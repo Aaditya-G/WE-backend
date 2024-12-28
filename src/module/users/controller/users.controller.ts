@@ -16,7 +16,6 @@ export class UsersController {
       }
       catch (error) {
         //todo: log error using sentry in future
-        console.log(error);
-      }
+}
   }
 }

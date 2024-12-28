@@ -52,8 +52,11 @@ export class RoomEntity {
   totalStealsSoFar: number;
 
   @Column({ type: 'int', default: 1 })
-  maxStealPerUser: number; // e.g. 1
+  maxStealPerUser: number; 
 
   @Column({ type: 'int', default: 3 })
-  maxStealPerGame: number; // e.g. 3
+  maxStealPerGame: number; 
+
+  @Column({ type: 'int', default: 3 })
+  maxStealPerGift: number; 
 }

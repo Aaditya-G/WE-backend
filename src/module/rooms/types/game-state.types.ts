@@ -15,6 +15,7 @@ export interface GameStateUser {
     name: string;
     addedById: number;
     receivedById: number | null;
+    stolenCount: number;
   }
   
   export interface GameState {
@@ -26,6 +27,7 @@ export interface GameStateUser {
     totalStealsSoFar: number;
     maxStealPerUser: number;
     maxStealPerGame: number;
+    maxStealPerGift: number;
     turnOrder: number[];
     logs : LogEntity[];
   }
