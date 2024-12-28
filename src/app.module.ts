@@ -29,6 +29,10 @@ import { ConfigKeyModule } from './config/config.module';
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           synchronize: false,
           logging: nodeEnv !== 'production',
+          extra: {
+            poolSize: 20,
+            maxPoolSize: 50,
+          },
         };
       },
       inject: [ConfigService],

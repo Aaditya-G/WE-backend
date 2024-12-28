@@ -78,23 +78,29 @@ export class GameService {
   }
 
   async getGameState(roomCode: string): Promise<GameState> {
-    const room = await this.roomRepository.findOne({
-      where: { code: roomCode },
-      relations: [
-        'owner',
-        'gifts',
-        'gifts.addedBy',
-        'gifts.receivedBy',
-        'participants',
-        'participants.user',
-        'participants.addedGift',
-        'logs',
-      ],
-    });
+    const room = await this.roomRepository
+      .createQueryBuilder('room')
+      .leftJoinAndSelect('room.owner', 'owner')
+      .leftJoinAndSelect('room.gifts', 'gifts')
+      .leftJoinAndSelect('gifts.addedBy', 'giftAddedBy')
+      .leftJoinAndSelect('gifts.receivedBy', 'giftReceivedBy')
+      .leftJoinAndSelect('room.participants', 'participants')
+      .leftJoinAndSelect('participants.user', 'participantUser')
+      .leftJoinAndSelect('participants.addedGift', 'participantAddedGift')
+      .leftJoinAndSelect('room.logs', 'logs')
+      .where('room.code = :code', { code: roomCode })
+      .getOne();
+  
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-
+  
+    const receivedGiftMap = new Map(
+      room.gifts
+        .filter((gift) => gift.receivedBy)
+        .map((gift) => [gift.receivedBy.id, gift.id]),
+    );
+  
     return {
       status: room.game_status,
       owner: room.owner,
@@ -103,8 +109,7 @@ export class GameService {
         name: p.user.name,
         isCheckedIn: p.isCheckedIn,
         giftId: p.addedGift?.id || null,
-        receivedGiftId:
-          room.gifts.find((g) => g.receivedBy?.id === p.user.id)?.id || null,
+        receivedGiftId: receivedGiftMap.get(p.user.id) || null,
         stealsSoFar: p.stealsSoFar,
       })),
       gifts: room.gifts.map((gift) => ({
@@ -124,6 +129,7 @@ export class GameService {
       maxStealPerGift: room.maxStealPerGift,
     };
   }
+  
 
   async addGift(
     userId: number,

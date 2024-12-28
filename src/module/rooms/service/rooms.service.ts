@@ -44,33 +44,42 @@ async createRoom(userId: number): Promise<{ room: RoomEntity; code: string }> {
 }
 
 
-  async joinRoom(userId: number, code: string): Promise<RoomEntity> {
-    const room = await this.roomsRepository.findOne({ where: { code }, relations: ['roomUsers'] });
-    if (!room) throw new NotFoundException('Room not found');
+async joinRoom(userId: number, code: string): Promise<RoomEntity> {
+  const room = await this.roomsRepository
+    .createQueryBuilder('room')
+    .leftJoinAndSelect('room.roomUsers', 'roomUser', 'roomUser.userId = :userId', { userId })
+    .where('room.code = :code', { code })
+    .getOne();
 
-    const user = await this.usersRepository.findOne({
-        where :{
-            id: userId
-        }
-    });
-    if (!user) throw new NotFoundException('User not found');
+  if (!room) throw new NotFoundException('Room not found');
 
-    // Check if user is already in the room
-    const existing = await this.roomUsersRepository.findOne({ where: { user, room } });
-    if (existing) {
-      existing.user_status = UserStatus.CONNECTED;
-      await this.roomUsersRepository.save(existing);
-    } else {
-      const roomUser = this.roomUsersRepository.create({
-        user,
-        room,
+  // User exists in room
+  if (room.roomUsers && room.roomUsers.length > 0) {
+    await this.roomUsersRepository
+      .createQueryBuilder()
+      .update(RoomUserEntity)
+      .set({ user_status: UserStatus.CONNECTED })
+      .where('userId = :userId AND roomId = :roomId', {
+        userId,
+        roomId: room.id,
+      })
+      .execute();
+  } else {
+    // Insert new room user in a single query
+    await this.roomUsersRepository
+      .createQueryBuilder()
+      .insert()
+      .into(RoomUserEntity)
+      .values({
+        user: { id: userId },
+        room: { id: room.id },
         user_status: UserStatus.CONNECTED,
-      });
-      await this.roomUsersRepository.save(roomUser);
-    }
-
-    return room;
+      })
+      .execute();
   }
+
+  return room;
+}
 
   private generateRoomCode(): string {
     return uuidv4().split('-')[0]; // Simple code generation; consider more robust methods
