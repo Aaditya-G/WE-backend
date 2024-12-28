@@ -18,7 +18,8 @@ import { ConfigKeyModule } from './config/config.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const connectionString = configService.get<string>('DATABASE_URL');
-        const nodeEnv = configService.get<string>('ENVIRONMENT') || 'development';
+        const nodeEnv =
+          configService.get<string>('ENVIRONMENT') || 'development';
         return {
           type: 'postgres',
           url: connectionString,
@@ -33,7 +34,7 @@ import { ConfigKeyModule } from './config/config.module';
       },
       inject: [ConfigService],
     }),
-    
+
     UsersModule,
     RoomsModule,
     ConfigKeyModule,

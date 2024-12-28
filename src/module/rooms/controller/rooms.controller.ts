@@ -2,7 +2,6 @@ import { Controller, Post, Body, Param, Get } from '@nestjs/common';
 import { RoomsService } from '../service/rooms.service';
 import { RoomEntity } from '../entities/room.entity';
 
-
 @Controller('rooms')
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
@@ -14,7 +13,10 @@ export class RoomsController {
   }
 
   @Post('join')
-  async joinRoom(@Body('userId') userId: number, @Body('code') code: string): Promise<RoomEntity> {
+  async joinRoom(
+    @Body('userId') userId: number,
+    @Body('code') code: string,
+  ): Promise<RoomEntity> {
     return this.roomsService.joinRoom(userId, code);
   }
 

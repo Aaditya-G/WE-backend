@@ -10,7 +10,7 @@ export class UserEntity {
   @Column({ unique: true })
   name: string;
 
-  @OneToMany(() => RoomUserEntity, roomUser => roomUser.user)
+  @OneToMany(() => RoomUserEntity, (roomUser) => roomUser.user)
   roomUsers: RoomUserEntity[];
 
   @OneToMany(() => RoomEntity, (room) => room.owner)

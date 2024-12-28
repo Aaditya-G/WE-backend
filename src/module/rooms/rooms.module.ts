@@ -10,10 +10,17 @@ import { GameService } from './service/game.service';
 import { GiftEntity } from './entities/gift.entity';
 import { LogEntity } from './entities/log.entity';
 
-
 @Module({
-  imports: [TypeOrmModule.forFeature([RoomEntity, RoomUserEntity, UserEntity , GiftEntity , LogEntity])],
-  providers: [RoomsService, RoomsGateway , GameService],
+  imports: [
+    TypeOrmModule.forFeature([
+      RoomEntity,
+      RoomUserEntity,
+      UserEntity,
+      GiftEntity,
+      LogEntity,
+    ]),
+  ],
+  providers: [RoomsService, RoomsGateway, GameService],
   controllers: [RoomsController],
   exports: [RoomsService],
 })

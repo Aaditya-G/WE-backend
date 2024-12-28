@@ -30,11 +30,10 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly gameService: GameService,
   ) {}
 
-  async handleConnection(client: Socket) {
-}
+  async handleConnection(client: Socket) {}
 
   async handleDisconnect(client: Socket) {
-// Find and cleanup user associated with this socket
+    // Find and cleanup user associated with this socket
     // let userIdToRemove: number | undefined;
     // for (const [userId, socketId] of this.userSocketMap.entries()) {
     //   if (socketId === client.id) {
@@ -42,7 +41,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     //     break;
     //   }
     // }
-
     // if (userIdToRemove) {
     //   const roomCode = this.userRoomMap.get(userIdToRemove);
     //   if (roomCode) {
@@ -50,7 +48,6 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     //     this.userSocketMap.delete(userIdToRemove);
     //     this.userRoomMap.delete(userIdToRemove);
     //     this.connectionInProgress.delete(userIdToRemove);
-
     //     this.server.to(roomCode).emit('userLeft', { userId: userIdToRemove });
     //     const count = this.getParticipantCount(roomCode);
     //     this.server.to(roomCode).emit('participantCount', { count });
@@ -66,7 +63,7 @@ export class RoomsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const { userId } = data;
 
     if (this.connectionInProgress.get(userId)) {
-return;
+      return;
     }
 
     try {
@@ -92,7 +89,7 @@ return;
       this.userRoomMap.set(userId, code);
 
       await client.join(code);
-this.server.to(code).emit('userJoined', { userId });
+      this.server.to(code).emit('userJoined', { userId });
       this.server.to(code).emit('gameStateUpdate', gameState);
       const count = this.getParticipantCount(code);
       this.server.to(code).emit('participantCount', { count });
@@ -118,7 +115,7 @@ this.server.to(code).emit('userJoined', { userId });
     const { userId, code } = data;
 
     if (this.connectionInProgress.get(userId)) {
-return;
+      return;
     }
 
     try {
@@ -129,7 +126,7 @@ return;
       const currentRoomCode = this.userRoomMap.get(userId);
 
       if (currentRoomCode === code && currentSocketId === client.id) {
-return;
+        return;
       }
 
       // Handle existing connection
@@ -151,7 +148,7 @@ return;
       this.userRoomMap.set(userId, code);
 
       await client.join(code);
-this.server.to(code).emit('userJoined', { userId });
+      this.server.to(code).emit('userJoined', { userId });
       this.server
         .to(code)
         .emit('gameStateUpdate', { success: true, gameState });
@@ -280,7 +277,7 @@ this.server.to(code).emit('userJoined', { userId });
     try {
       await this.gameService.startChecking(userId, roomCode);
       const gameState = await this.gameService.getGameState(roomCode);
-this.server
+      this.server
         .to(roomCode)
         .emit('gameStateUpdate', { success: true, gameState });
     } catch (error) {
@@ -383,7 +380,6 @@ this.server
         .emit('gameStateUpdate', { success: true, gameState });
       client.emit('stealGiftResponse', { success: true });
     } catch (error) {
-      console.log(error.stack)
       client.emit('stealGiftResponse', {
         success: false,
         message: error.message,

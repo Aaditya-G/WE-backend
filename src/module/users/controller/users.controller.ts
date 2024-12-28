@@ -8,14 +8,11 @@ export class UsersController {
 
   @Post('add-user')
   @HttpCode(HttpStatus.CREATED)
-  async addUser(
-    @Body() body: AddUserDto
-    ): Promise<UserEntity | Error> {
-      try{
-    return this.usersService.addUser(body);
-      }
-      catch (error) {
-        //todo: log error using sentry in future
-}
+  async addUser(@Body() body: AddUserDto): Promise<UserEntity | Error> {
+    try {
+      return this.usersService.addUser(body);
+    } catch (error) {
+      //todo: log error using sentry in future
+    }
   }
 }

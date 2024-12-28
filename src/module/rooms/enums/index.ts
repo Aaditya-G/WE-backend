@@ -5,7 +5,6 @@ export enum GameStatus {
   CHECKIN = 'CHECKIN',
 }
 
-
 export enum UserStatus {
   CONNECTED = 'CONNECTED',
   DISCONNECTED = 'DISCONNECTED',

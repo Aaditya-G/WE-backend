@@ -1,11 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  ManyToOne,
+} from 'typeorm';
 import { RoomUserEntity } from './room-user.entity';
 import { GameStatus } from '../enums';
 import { UserEntity } from 'src/module/users/entities/user.entity';
 import { GiftEntity } from './gift.entity';
 import { LogEntity } from './log.entity';
-
-
 
 @Entity('ROOM')
 export class RoomEntity {
@@ -27,17 +31,17 @@ export class RoomEntity {
   })
   owner: UserEntity;
 
-  @OneToMany(() => RoomUserEntity, roomUser => roomUser.room)
+  @OneToMany(() => RoomUserEntity, (roomUser) => roomUser.room)
   roomUsers: RoomUserEntity[];
 
-  @OneToMany(() => GiftEntity, gift => gift.room)
+  @OneToMany(() => GiftEntity, (gift) => gift.room)
   gifts: GiftEntity[];
 
-  @OneToMany(() => RoomUserEntity, roomUser => roomUser.room)
+  @OneToMany(() => RoomUserEntity, (roomUser) => roomUser.room)
   participants: RoomUserEntity[];
 
   //onetomany for logs
-  @OneToMany(() => LogEntity, log => log.room , {
+  @OneToMany(() => LogEntity, (log) => log.room, {
     cascade: true,
   })
   logs: LogEntity[];
@@ -52,11 +56,11 @@ export class RoomEntity {
   totalStealsSoFar: number;
 
   @Column({ type: 'int', default: 1 })
-  maxStealPerUser: number; 
+  maxStealPerUser: number;
 
   @Column({ type: 'int', default: 3 })
-  maxStealPerGame: number; 
+  maxStealPerGame: number;
 
   @Column({ type: 'int', default: 3 })
-  maxStealPerGift: number; 
+  maxStealPerGift: number;
 }

@@ -1,13 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 
-
 @Global()
 @Module({
   imports: [],
-  exports: [
-  ],
+  exports: [],
   controllers: [],
-  providers: [
-  ],
+  providers: [],
 })
 export class ConfigKeyModule {}

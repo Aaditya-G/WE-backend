@@ -58,7 +58,7 @@ export class GameService {
         id: participant.user.id,
         isCheckedIn: participant.isCheckedIn,
         giftId: participant.addedGift?.id || null,
-        receivedGiftId: null,
+        receivedGift: null,
       })),
       gifts: room.gifts.map((gift) => ({
         id: gift.id,
@@ -90,17 +90,17 @@ export class GameService {
       .leftJoinAndSelect('room.logs', 'logs')
       .where('room.code = :code', { code: roomCode })
       .getOne();
-  
+
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-  
+
     const receivedGiftMap = new Map(
       room.gifts
         .filter((gift) => gift.receivedBy)
-        .map((gift) => [gift.receivedBy.id, gift.id]),
+        .map((gift) => [gift.receivedBy.id, gift]),
     );
-  
+
     return {
       status: room.game_status,
       owner: room.owner,
@@ -109,7 +109,7 @@ export class GameService {
         name: p.user.name,
         isCheckedIn: p.isCheckedIn,
         giftId: p.addedGift?.id || null,
-        receivedGiftId: receivedGiftMap.get(p.user.id) || null,
+        receivedGift: receivedGiftMap.get(p.user.id) || null,
         stealsSoFar: p.stealsSoFar,
       })),
       gifts: room.gifts.map((gift) => ({
@@ -129,7 +129,6 @@ export class GameService {
       maxStealPerGift: room.maxStealPerGift,
     };
   }
-  
 
   async addGift(
     userId: number,
@@ -141,9 +140,6 @@ export class GameService {
         where: { user: { id: userId }, room: { code: roomCode } },
         relations: ['room', 'addedGift', 'user'],
       });
-
-      console.log(roomUser);
-
       if (!roomUser) {
         throw new NotFoundException('User not in room');
       }
@@ -328,7 +324,7 @@ export class GameService {
 
     await this.addLog(
       roomCode,
-      `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift called`,
+      `${room.participants.find((p) => p.user.id === userId).user.name} picked a gift ${gift.name}`,
     );
   }
 
